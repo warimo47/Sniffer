@@ -89,8 +89,22 @@ typedef struct icmp_hdr
 	USHORT seq;
 } ICMP_HDR;
 
-FILE *UDP_logfile;
-FILE *TCP_logfile;
+FILE *UDP_ETC_logfile;
+FILE *UDP_HTTP_logfile;
+FILE *UDP_HTTPS_logfile;
+FILE *UDP_SMTP_logfile;
+FILE *UDP_FTP_logfile;
+FILE *UDP_DNS_logfile;
+
+FILE *TCP_ETC_logfile;
+FILE *TCP_HTTP_logfile;
+FILE *TCP_HTTPS_logfile;
+FILE *TCP_SMTP_logfile;
+FILE *TCP_FTP_logfile;
+FILE *TCP_DNS_logfile;
+
+FILE *OTHER_logfile;
+
 int tcp = 0, udp = 0, icmp = 0, others = 0, igmp = 0, total = 0, i, j;
 struct sockaddr_in source, dest;
 char hex[2];
@@ -111,16 +125,34 @@ int main()
 	struct hostent *local;
 	WSADATA wsa;
 
-	UDP_logfile = fopen("UDP_log.txt", "w");
-	if (UDP_logfile == NULL)
-	{
-		printf("Unable to create file.");
-	}
-	TCP_logfile = fopen("TCP_log.txt", "w");
-	if (TCP_logfile == NULL)
-	{
-		printf("Unable to create file.");
-	}
+	UDP_ETC_logfile = fopen("UDP_ETC_log.txt", "w");
+	if (UDP_ETC_logfile == NULL) printf("Unable to create file.");
+	UDP_HTTP_logfile = fopen("UDP_HTTP_log.txt", "w");
+	if (UDP_HTTP_logfile == NULL) printf("Unable to create file.");
+	UDP_HTTPS_logfile = fopen("UDP_HTTPS_log.txt", "w");
+	if (UDP_HTTPS_logfile == NULL) printf("Unable to create file.");
+	UDP_SMTP_logfile = fopen("UDP_SMTP_log.txt", "w");
+	if (UDP_SMTP_logfile == NULL) printf("Unable to create file.");
+	UDP_FTP_logfile = fopen("UDP_FTP_log.txt", "w");
+	if (UDP_FTP_logfile == NULL) printf("Unable to create file.");
+	UDP_DNS_logfile = fopen("UDP_DNS_log.txt", "w");
+	if (UDP_DNS_logfile == NULL) printf("Unable to create file.");
+	
+	TCP_ETC_logfile = fopen("TCP_ETC_log.txt", "w");
+	if (TCP_ETC_logfile == NULL) printf("Unable to create file.");
+	TCP_HTTP_logfile = fopen("TCP_HTTP_log.txt", "w");
+	if (TCP_HTTP_logfile == NULL) printf("Unable to create file.");
+	TCP_HTTPS_logfile = fopen("TCP_HTTPS_log.txt", "w");
+	if (TCP_HTTPS_logfile == NULL) printf("Unable to create file.");
+	TCP_SMTP_logfile = fopen("TCP_SMTP_log.txt", "w");
+	if (TCP_SMTP_logfile == NULL) printf("Unable to create file.");
+	TCP_FTP_logfile = fopen("TCP_FTP_log.txt", "w");
+	if (TCP_FTP_logfile == NULL) printf("Unable to create file.");
+	TCP_DNS_logfile = fopen("TCP_DNS_log.txt", "w");
+	if (TCP_DNS_logfile == NULL) printf("Unable to create file.");
+
+	OTHER_logfile = fopen("Other_log.txt", "w");
+	if (OTHER_logfile == NULL) printf("Unable to create file.");
 
 	//Initialise Winsock
 	printf("\nInitialising Winsock...");
@@ -302,44 +334,65 @@ void PrintTcpPacket(char* Buffer, int Size)
 
 	tcpheader = (TCP_HDR*)(Buffer + iphdrlen);
 
-	fprintf(TCP_logfile, "\n\n***********************TCP Packet*************************\n");
+	FILE *pFile = TCP_ETC_logfile;
 
-	PrintIpHeader(Buffer, TCP_logfile);
+	switch (ntohs(tcpheader->dest_port))
+	{
+	case 20:
+	case 21:
+		pFile = TCP_FTP_logfile;
+		break;
+	case 53:
+		pFile = TCP_DNS_logfile;
+		break;
+	case 80:
+		pFile = TCP_HTTP_logfile;
+		break;
+	case 443:
+		pFile = TCP_HTTPS_logfile;
+		break;
+	default:
+		break;
+	}
 
-	fprintf(TCP_logfile, "\n");
-	fprintf(TCP_logfile, "TCP Header\n");
-	fprintf(TCP_logfile, " |-Source Port : %u\n", ntohs(tcpheader->source_port));
-	fprintf(TCP_logfile, " |-Destination Port : %u\n", ntohs(tcpheader->dest_port));
-	fprintf(TCP_logfile, " |-Sequence Number : %u\n", ntohl(tcpheader->sequence));
-	fprintf(TCP_logfile, " |-Acknowledge Number : %u\n", ntohl(tcpheader->acknowledge));
-	fprintf(TCP_logfile, " |-Header Length : %d DWORDS or %d BYTES\n"
+	fprintf(pFile, "\n\n***********************TCP Packet*************************\n");
+
+	PrintIpHeader(Buffer, pFile);
+
+	fprintf(pFile, "\n");
+	fprintf(pFile, "TCP Header\n");
+	fprintf(pFile, " |-Source Port : %u\n", ntohs(tcpheader->source_port));
+	fprintf(pFile, " |-Destination Port : %u\n", ntohs(tcpheader->dest_port));
+	fprintf(pFile, " |-Sequence Number : %u\n", ntohl(tcpheader->sequence));
+	fprintf(pFile, " |-Acknowledge Number : %u\n", ntohl(tcpheader->acknowledge));
+	fprintf(pFile, " |-Header Length : %d DWORDS or %d BYTES\n"
 		, (unsigned int)tcpheader->data_offset, (unsigned int)tcpheader->data_offset * 4);
-	fprintf(TCP_logfile, " |-CWR Flag : %d\n", (unsigned int)tcpheader->cwr);
-	fprintf(TCP_logfile, " |-ECN Flag : %d\n", (unsigned int)tcpheader->ecn);
-	fprintf(TCP_logfile, " |-Urgent Flag : %d\n", (unsigned int)tcpheader->urg);
-	fprintf(TCP_logfile, " |-Acknowledgement Flag : %d\n", (unsigned int)tcpheader->ack);
-	fprintf(TCP_logfile, " |-Push Flag : %d\n", (unsigned int)tcpheader->psh);
-	fprintf(TCP_logfile, " |-Reset Flag : %d\n", (unsigned int)tcpheader->rst);
-	fprintf(TCP_logfile, " |-Synchronise Flag : %d\n", (unsigned int)tcpheader->syn);
-	fprintf(TCP_logfile, " |-Finish Flag : %d\n", (unsigned int)tcpheader->fin);
-	fprintf(TCP_logfile, " |-Window : %d\n", ntohs(tcpheader->window));
-	fprintf(TCP_logfile, " |-Checksum : %d\n", ntohs(tcpheader->checksum));
-	fprintf(TCP_logfile, " |-Urgent Pointer : %d\n", tcpheader->urgent_pointer);
-	fprintf(TCP_logfile, "\n");
-	fprintf(TCP_logfile, " DATA Dump\n");
-	fprintf(TCP_logfile, "\n");
+	fprintf(pFile, " |-CWR Flag : %d\n", (unsigned int)tcpheader->cwr);
+	fprintf(pFile, " |-ECN Flag : %d\n", (unsigned int)tcpheader->ecn);
+	fprintf(pFile, " |-Urgent Flag : %d\n", (unsigned int)tcpheader->urg);
+	fprintf(pFile, " |-Acknowledgement Flag : %d\n", (unsigned int)tcpheader->ack);
+	fprintf(pFile, " |-Push Flag : %d\n", (unsigned int)tcpheader->psh);
+	fprintf(pFile, " |-Reset Flag : %d\n", (unsigned int)tcpheader->rst);
+	fprintf(pFile, " |-Synchronise Flag : %d\n", (unsigned int)tcpheader->syn);
+	fprintf(pFile, " |-Finish Flag : %d\n", (unsigned int)tcpheader->fin);
+	fprintf(pFile, " |-Window : %d\n", ntohs(tcpheader->window));
+	fprintf(pFile, " |-Checksum : %d\n", ntohs(tcpheader->checksum));
+	fprintf(pFile, " |-Urgent Pointer : %d\n", tcpheader->urgent_pointer);
+	fprintf(pFile, "\n");
+	fprintf(pFile, " DATA Dump\n");
+	fprintf(pFile, "\n");
 
-	fprintf(TCP_logfile, "IP Header\n");
-	PrintData(Buffer, iphdrlen, TCP_logfile);
+	fprintf(pFile, "IP Header\n");
+	PrintData(Buffer, iphdrlen, pFile);
 
-	fprintf(TCP_logfile, "TCP Header\n");
-	PrintData(Buffer + iphdrlen, tcpheader->data_offset * 4, TCP_logfile);
+	fprintf(pFile, "TCP Header\n");
+	PrintData(Buffer + iphdrlen, tcpheader->data_offset * 4, pFile);
 
-	fprintf(TCP_logfile, "Data Payload\n");
+	fprintf(pFile, "Data Payload\n");
 	PrintData(Buffer + iphdrlen + tcpheader->data_offset * 4
-		, (Size - tcpheader->data_offset * 4 - iphdr->ip_header_len * 4), TCP_logfile);
+		, (Size - tcpheader->data_offset * 4 - iphdr->ip_header_len * 4), pFile);
 
-	fprintf(TCP_logfile, "\n###########################################################");
+	fprintf(pFile, "\n###########################################################");
 }
 
 void PrintUdpPacket(char *Buffer, int Size)
@@ -351,30 +404,51 @@ void PrintUdpPacket(char *Buffer, int Size)
 
 	udpheader = (UDP_HDR *)(Buffer + iphdrlen);
 
-	fprintf(UDP_logfile, "\n\n***********************UDP Packet*************************\n");
+	FILE *pFile = UDP_ETC_logfile;
 
-	PrintIpHeader(Buffer, UDP_logfile);
+	switch (ntohs(udpheader->dest_port))
+	{
+	case 20:
+	case 21:
+		pFile = UDP_FTP_logfile;
+		break;
+	case 53:
+		pFile = UDP_DNS_logfile;
+		break;
+	case 80:
+		pFile = UDP_HTTP_logfile;
+		break;
+	case 443:
+		pFile = UDP_HTTPS_logfile;
+		break;
+	default:
+		break;
+	}
 
-	fprintf(UDP_logfile, "\nUDP Header\n");
-	fprintf(UDP_logfile, " |-Source Port : %d\n", ntohs(udpheader->source_port));
-	fprintf(UDP_logfile, " |-Destination Port : %d\n", ntohs(udpheader->dest_port));
-	fprintf(UDP_logfile, " |-UDP Length : %d\n", ntohs(udpheader->udp_length));
-	fprintf(UDP_logfile, " |-UDP Checksum : %d\n", ntohs(udpheader->udp_checksum));
+	fprintf(pFile, "\n\n***********************UDP Packet*************************\n");
 
-	fprintf(UDP_logfile, "\n");
-	fprintf(UDP_logfile, "IP Header\n");
+	PrintIpHeader(Buffer, pFile);
 
-	PrintData(Buffer, iphdrlen, UDP_logfile);
+	fprintf(pFile, "\nUDP Header\n");
+	fprintf(pFile, " |-Source Port : %d\n", ntohs(udpheader->source_port));
+	fprintf(pFile, " |-Destination Port : %d\n", ntohs(udpheader->dest_port));
+	fprintf(pFile, " |-UDP Length : %d\n", ntohs(udpheader->udp_length));
+	fprintf(pFile, " |-UDP Checksum : %d\n", ntohs(udpheader->udp_checksum));
 
-	fprintf(UDP_logfile, "UDP Header\n");
+	fprintf(pFile, "\n");
+	fprintf(pFile, "IP Header\n");
 
-	PrintData(Buffer + iphdrlen, sizeof(UDP_HDR), UDP_logfile);
+	PrintData(Buffer, iphdrlen, pFile);
 
-	fprintf(UDP_logfile, "Data Payload\n");
+	fprintf(pFile, "UDP Header\n");
 
-	PrintData(Buffer + iphdrlen + sizeof(UDP_HDR), (Size - sizeof(UDP_HDR) - iphdr->ip_header_len * 4), UDP_logfile);
+	PrintData(Buffer + iphdrlen, sizeof(UDP_HDR), pFile);
 
-	fprintf(UDP_logfile, "\n###########################################################");
+	fprintf(pFile, "Data Payload\n");
+
+	PrintData(Buffer + iphdrlen + sizeof(UDP_HDR), (Size - sizeof(UDP_HDR) - iphdr->ip_header_len * 4), pFile);
+
+	fprintf(pFile, "\n###########################################################");
 }
 
 void PrintIcmpPacket(char* Buffer, int Size)
@@ -386,39 +460,39 @@ void PrintIcmpPacket(char* Buffer, int Size)
 
 	icmpheader = (ICMP_HDR*)(Buffer + iphdrlen);
 
-	fprintf(UDP_logfile, "\n\n***********************ICMP Packet*************************\n");
-	PrintIpHeader(Buffer, UDP_logfile);
+	fprintf(OTHER_logfile, "\n\n***********************ICMP Packet*************************\n");
+	PrintIpHeader(Buffer, OTHER_logfile);
 
-	fprintf(UDP_logfile, "\n");
+	fprintf(OTHER_logfile, "\n");
 
-	fprintf(UDP_logfile, "ICMP Header\n");
-	fprintf(UDP_logfile, " |-Type : %d", (unsigned int)(icmpheader->type));
+	fprintf(OTHER_logfile, "ICMP Header\n");
+	fprintf(OTHER_logfile, " |-Type : %d", (unsigned int)(icmpheader->type));
 
 	if ((unsigned int)(icmpheader->type) == 11)
 	{
-		fprintf(UDP_logfile, " (TTL Expired)\n");
+		fprintf(OTHER_logfile, " (TTL Expired)\n");
 	}
 	else if ((unsigned int)(icmpheader->type) == 0)
 	{
-		fprintf(UDP_logfile, " (ICMP Echo Reply)\n");
+		fprintf(OTHER_logfile, " (ICMP Echo Reply)\n");
 	}
 
-	fprintf(UDP_logfile, " |-Code : %d\n", (unsigned int)(icmpheader->code));
-	fprintf(UDP_logfile, " |-Checksum : %d\n", ntohs(icmpheader->checksum));
-	fprintf(UDP_logfile, " |-ID : %d\n", ntohs(icmpheader->id));
-	fprintf(UDP_logfile, " |-Sequence : %d\n", ntohs(icmpheader->seq));
-	fprintf(UDP_logfile, "\n");
+	fprintf(OTHER_logfile, " |-Code : %d\n", (unsigned int)(icmpheader->code));
+	fprintf(OTHER_logfile, " |-Checksum : %d\n", ntohs(icmpheader->checksum));
+	fprintf(OTHER_logfile, " |-ID : %d\n", ntohs(icmpheader->id));
+	fprintf(OTHER_logfile, " |-Sequence : %d\n", ntohs(icmpheader->seq));
+	fprintf(OTHER_logfile, "\n");
 
-	fprintf(UDP_logfile, "IP Header\n");
-	PrintData(Buffer, iphdrlen, UDP_logfile);
+	fprintf(OTHER_logfile, "IP Header\n");
+	PrintData(Buffer, iphdrlen, OTHER_logfile);
 
-	fprintf(UDP_logfile, "UDP Header\n");
-	PrintData(Buffer + iphdrlen, sizeof(ICMP_HDR), UDP_logfile);
+	fprintf(OTHER_logfile, "UDP Header\n");
+	PrintData(Buffer + iphdrlen, sizeof(ICMP_HDR), OTHER_logfile);
 
-	fprintf(UDP_logfile, "Data Payload\n");
-	PrintData(Buffer + iphdrlen + sizeof(ICMP_HDR), (Size - sizeof(ICMP_HDR) - iphdr->ip_header_len * 4), UDP_logfile);
+	fprintf(OTHER_logfile, "Data Payload\n");
+	PrintData(Buffer + iphdrlen + sizeof(ICMP_HDR), (Size - sizeof(ICMP_HDR) - iphdr->ip_header_len * 4), OTHER_logfile);
 
-	fprintf(UDP_logfile, "\n###########################################################");
+	fprintf(OTHER_logfile, "\n###########################################################");
 }
 
 /*
