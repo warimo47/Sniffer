@@ -12,9 +12,10 @@ void StartSniffing(SOCKET Sock); //This will sniff here and there
 void ProcessPacket(char*, int); //This will decide how to digest
 void PrintIpHeader(char*, FILE*);
 void PrintIcmpPacket(char*, int);
+// void PrintIgmpPacket(char*, int);
 void PrintUdpPacket(char*, int);
 void PrintTcpPacket(char*, int);
-void ConvertToHex(char*, unsigned int);
+// void ConvertToHex(char*, unsigned int);
 void PrintData(char*, int, FILE*);
 
 typedef struct ip_hdr
@@ -105,7 +106,9 @@ FILE *TCP_DNS_logfile;
 
 FILE *OTHER_logfile;
 
-int tcp = 0, udp = 0, icmp = 0, others = 0, igmp = 0, total = 0, i, j;
+int tcp_etc = 0, tcp_http = 0, tcp_https = 0, tcp_smtp = 0, tcp_ftp = 0, tcp_dns = 0;
+int udp_etc = 0, udp_http = 0, udp_https = 0, udp_smtp = 0, udp_ftp = 0, udp_dns = 0;
+int icmp = 0, others = 0, igmp = 0, total = 0, i, j;
 struct sockaddr_in source, dest;
 char hex[2];
 
@@ -226,6 +229,9 @@ int main()
 	//Begin
 	printf("\nStarted Sniffing\n");
 	printf("Packet Capture Statistics...\n");
+	
+	system("cls");
+	
 	StartSniffing(sniffer); //Happy Sniffing
 
 							//End
@@ -279,12 +285,10 @@ void ProcessPacket(char* Buffer, int Size)
 		break;
 
 	case 6: //TCP Protocol
-		++tcp;
 		PrintTcpPacket(Buffer, Size);
 		break;
 
 	case 17: //UDP Protocol
-		++udp;
 		PrintUdpPacket(Buffer, Size);
 		break;
 
@@ -292,7 +296,10 @@ void ProcessPacket(char* Buffer, int Size)
 		++others;
 		break;
 	}
-	printf("TCP : %d UDP : %d ICMP : %d IGMP : %d Others : %d Total : %d\r", tcp, udp, icmp, igmp, others, total);
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), {0, 0});
+	printf("TCP_ETC : %d\tTCP_FTP : %d\tTCP_SMTP : %d\tTCP_DNS : %d\tTCP_HTTP : %d\tTCP_HTTPS : %d\n", tcp_etc, tcp_ftp, tcp_smtp, tcp_dns, tcp_http, tcp_https);
+	printf("UDP_ETC : %d\tUDP_FTP : %d\tUDP_SMTP : %d\tUDP_DNS : %d\tUDP_HTTP : %d\tUDP_HTTPS : %d\n", udp_etc, udp_ftp, udp_smtp, udp_dns, udp_http, udp_https);
+	printf("ICMP : %d\tIGMP : %d\tOthers : %d\tTotal : %d\n", icmp, igmp, others, total);
 }
 
 void PrintIpHeader(char* Buffer, FILE* p_file)
@@ -341,17 +348,27 @@ void PrintTcpPacket(char* Buffer, int Size)
 	case 20:
 	case 21:
 		pFile = TCP_FTP_logfile;
+		tcp_ftp++;
+		break;
+	case 25:
+	case 110:
+		pFile = TCP_SMTP_logfile;
+		tcp_smtp++;
 		break;
 	case 53:
 		pFile = TCP_DNS_logfile;
+		tcp_dns++;
 		break;
 	case 80:
 		pFile = TCP_HTTP_logfile;
+		tcp_http++;
 		break;
 	case 443:
 		pFile = TCP_HTTPS_logfile;
+		tcp_https++;
 		break;
 	default:
+		tcp_etc++;
 		break;
 	}
 
@@ -411,17 +428,27 @@ void PrintUdpPacket(char *Buffer, int Size)
 	case 20:
 	case 21:
 		pFile = UDP_FTP_logfile;
+		udp_ftp++;
+		break;
+	case 25:
+	case 110:
+		pFile = UDP_SMTP_logfile;
+		udp_smtp++;
 		break;
 	case 53:
 		pFile = UDP_DNS_logfile;
+		udp_dns++;
 		break;
 	case 80:
 		pFile = UDP_HTTP_logfile;
+		udp_http++;
 		break;
 	case 443:
 		pFile = UDP_HTTPS_logfile;
+		udp_https++;
 		break;
 	default:
+		udp_etc++;
 		break;
 	}
 
